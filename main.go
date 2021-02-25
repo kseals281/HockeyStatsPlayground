@@ -9,7 +9,7 @@ import (
 
 func main() {
 	resp := getPage("https://www.hockeydb.com/ihdb/stats/leagues/seasons/teams/0000332021.html")
-	parseTable(resp)
+	pprint(parseTable(resp))
 }
 
 func getPage(url string) *http.Response {
@@ -21,7 +21,7 @@ func getPage(url string) *http.Response {
 	return resp
 }
 
-func parseTable(resp *http.Response) {
+func parseTable(resp *http.Response) [][]string {
 	z := html.NewTokenizer(resp.Body)
 	defer resp.Body.Close()
 	var content [][]string
@@ -31,20 +31,15 @@ func parseTable(resp *http.Response) {
 		tt := z.Next()
 
 		switch tt {
+
 		case html.ErrorToken:
-			pprint(content)
-			return
+			return content
 
 		case html.StartTagToken:
 			t := z.Token()
 
-			if t.Data == "td" {
-				inner := z.Next()
-				if inner == html.TextToken {
-					text := (string)(z.Text())
-					t := strings.TrimSpace(text)
-					curr = append(curr, t)
-				}
+			if t.Data == "td" || t.Data == "th" {
+				curr = append(curr, parseCell(z))
 			}
 
 		case html.EndTagToken:
@@ -58,6 +53,16 @@ func parseTable(resp *http.Response) {
 
 		}
 	}
+}
+
+func parseCell(z *html.Tokenizer) string {
+	inner := z.Next()
+	if inner == html.TextToken {
+		text := (string)(z.Text())
+		t := strings.TrimSpace(text)
+		return t
+	}
+	return parseCell(z)
 }
 
 func pprint(s [][]string) {
